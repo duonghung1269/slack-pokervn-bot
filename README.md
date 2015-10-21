@@ -1,7 +1,7 @@
 Slack Bot Poker Vietnam
 ===================
 
-A bot that allows you to play Poker in Vietnam.
+A bot that allows you to play Poker Vietnam in Slack.
 Start a game in any channel or private group, and more people can play.
 
 Written for fun and to practice nodejs.

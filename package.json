@@ -1,11 +1,11 @@
 {
-  "name": "slack-bot-test",
+  "name": "slack-pokervn-bot",
   "version": "1.0.0",
-  "description": "Just build to understand how slack bot work",
-  "main": "lib/testbot.js",
+  "description": "A bot that allows you to play Poker Vietnam in Slack.",
+  "main": "src/bot/pokervnbot.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Hung",
-  "license": "ISC"
+  "license": "MIT"
 }
