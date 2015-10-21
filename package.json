@@ -1,0 +1,11 @@
+{
+  "name": "slack-bot-test",
+  "version": "1.0.0",
+  "description": "Just build to understand how slack bot work",
+  "main": "lib/testbot.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Hung",
+  "license": "ISC"
+}
