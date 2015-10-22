@@ -4,7 +4,7 @@
   "description": "A bot that allows you to play Poker Vietnam in Slack.",
   "main": "src/bot/pokervnbot.js",
   "scripts": {
-    "start": "babel-node bin/bot.js",
+    "start": "node bin/main.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Hung",

@@ -2,7 +2,7 @@ class MessageHelpers {
 
   static isUserMentioned(userId, messageText) {
     let userTag = this.getUserMentionedString(userId);
-    return messageText && (messageText.indexOf(userTag) > -1);
+    return messageText && messageText.startsWith(userTag);
   }
 
   static getUserMentionedString(userId) {

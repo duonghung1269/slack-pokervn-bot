@@ -1,120 +1,120 @@
-const util = require('util');
-const path = require('path');
-const fs = require('fs');
-const Bot = require('slack-client');
+const rx = require('rx');
+const _ = require('underscore-plus');
+
+const Slack = require('slack-client');
 const MessageHelpers = require('../helper/message-helpers');
+const PlayerInteraction = require('../pokervn/player-interation');
 
-var isFirstRun = false;
+class PokerVnBot {
 
-var PokerVnBot = function Constructor(token, autoReconnect, autoMark) {
-    this.token = token;
-    this.autoReconnect = autoReconnect;
-    this.autoMark = autoMark;
+  constructor(token) {
+    this.slack = new Slack(token, true, true);
 
-    this.botUser = null;
-    this.db = null;
-}
-
-util.inherits(PokerVnBot, Bot);
-
-PokerVnBot.prototype.run = function() {
-    PokerVnBot.super_.call(this, this.token, this.autoReconnect, this.autoMark);
-    this.login();
-    this.on('open', this._onOpen);
-    this.on('message', this._onMessage);
-}
-
-PokerVnBot.prototype._onOpen = function() {
-    var self = this;
-    var channels = Object.keys(self.channels)
-        .map(function (k) { return self.channels[k]; })
-        .filter(function (c) { return c.is_member; })
-        .map(function (c) { return c.name; });
-
-    var groups = Object.keys(self.groups)
-        .map(function (k) { return self.groups[k]; })
-        .filter(function (g) { return g.is_open && !g.is_archived; })
-        .map(function (g) { return g.name; });
-    
-    console.log('Welcome to Slack. You are ' + self.self.name + ' of ' + self.team.name);
-
-    if (channels.length > 0) {
-        console.log('You are in: ' + channels.join(', '));
-    }
-    else {
-        console.log('You are not in any channels.');
-    }
-
-    if (groups.length > 0) {
-       console.log('As well as: ' + groups.join(', '));
-    }
-    self._loadBotUser();
-}
-
-PokerVnBot.prototype._onMessage = function(message) {
-    var channel = this.getChannelGroupOrDMByID(message.channel);
-    var user = this.getUserByID(message.user);
-    var self = this;
-
-    // if (message.type === 'message' && self._isDirectMessage(self.botUser.id, message.text)) {
-    if (message.type === 'message' && MessageHelpers.isUserMentioned(self.botUser.id, message.text)) {
-        console.log(channel.name + ':' + user.name + ':' + message.text);
-        var trimmedMessage = message.text.trim(); //.substr(this._makeMention(self.self.id).length).trim();
-
-        var onlineUsers = self._getOnlineHumansForChannel(channel)
-             .filter(function(u) { return u.id != user.id; })
-             .map(function(u) { return MessageHelpers.getUserMentionedString(u.id); });
-
-        channel.send(onlineUsers.join(', ') + '\r\n' + user.real_name + 'said: ' + trimmedMessage);
-    }
-}
-
-PokerVnBot.prototype._onStart = function() {
-    console.log('_onStart');
-    this._loadBotUser();
-    this._firstRunCheck();
-}
-
-PokerVnBot.prototype._loadBotUser = function() {
-    var self = this;
-    this.botUser = Object.keys(self.users)
-        .map(function (k) { return self.users[k]; })
-        .filter(function (u) { return u.name === self.self.name; })[0];
-}
-
-PokerVnBot.prototype._firstRunCheck = function() {
-    if (!isFirstRun) {
-        this._welcomeMessage();
-        isFirstRun = true;
-    }
-}
-
-PokerVnBot.prototype._welcomeMessage = function() {
-    console.log('channel name: ', this.channels);
-    this.postMessageToChannel(this.channels[3].name, 'Hi guys, anyone there?', {as_user: true});
-}
-
-PokerVnBot.prototype._makeMention = function(userId) {
-    return '<@' + userId + '>';
-}
-
-PokerVnBot.prototype._isDirectMessage = function(userId, messageText) {
-    var userTag = this._makeMention(userId);
-    return messageText &&
-           messageText.length >= userTag.length &&
-           messageText.substr(0, userTag.length) === userTag;
-}
-
-PokerVnBot.prototype._getOnlineHumansForChannel = function(channel) {
-  if (!channel) {
-    return [];
   }
 
-  var self = this;
+  // Brings this bot online and starts handling messages sent to it.
+  login() {
+    rx.Observable.fromEvent(this.slack, 'open')
+      .subscribe(() => this.onClientOpened());
 
-  return (channel.members || [])
-        .map(function (id) { self.users[id]; })
-        .filter(function(u) { !!u && u.is_bot && u.presence == 'active'; });
+    this.slack.login();
+    this.respondToMessages();
+  }
+
+  /**
+  * Private: Listens for messages directed at this bot that contain the word
+  * 'deal,' and poll players in response.
+  *
+  * Returns a {Disposable} that will end this subscription
+  **/
+  respondToMessages() {
+    let messages = rx.Observable.fromEvent(this.slack, 'message')
+                     .where(e => e.type === 'message');
+
+    let atMentions = messages.where(e => MessageHelpers.isUserMentioned(this.slack.self.id, e.text));
+
+    let disposalble = new rx.CompositeDisposable();
+    disposalble.add(this.handleDealGameMessages(messages, atMentions));
+    //disposalble.add(this.handleConfigMessages(atMentions));
+
+    return disposalble;
+  }
+  /**
+  * Private: Looks for messages directed at the bot that contain the word
+  * "deal." When found, start polling players for a game.
+  *
+  * messages - An {Observable} representing messages posted to a channel
+  * atMentions - An {Observable} representing messages directed at the bot
+  *
+  * Returns a {Disposable} that will end this subscription
+  **/
+  handleDealGameMessages(messages, atMentions) {
+    return atMentions
+            .where(e => e.text && e.text.toLowerCase().match(/\bdeal\b/))
+            .map(e => this.slack.getChannelGroupOrDMByID(e.channel))
+            .where(channel => {
+              if (this.isPolling) {
+                return false;
+              } else if (this.isGameRunning) {
+                channel.send('Another game is in progress, please quit that one first');
+                return false;
+              }
+
+              return true;
+            })
+            .flatMap(channel => this.pollPlayersForGame(messages, channel))
+            .subscribe();
+  }
+
+  /**
+  * Private: Looks for messages directed at the bot that contain the word
+  * "config" and have valid parameters. When found, set the parameter.
+  *
+  * atMentions - An {Observable} representing messages directed at the bot
+  *
+  * Returns a {Disposable} that will end this subscription
+  **/
+  handleConfigMessages(atMentions) {
+    return atMentions
+      .where(e => e.text && e.text.toLowerCase().includes('config'))
+      .subscribe(e => {
+        let channel = this.slack.getChannelGroupOrDMByID(e.channel);
+
+        e.text.replace(/(\w*)=(\d*)/g, (match, key, value) => {
+          if (this.gameConfigParams.indexOf(key) > -1 && value) {
+            this.gameConfig[key] = value;
+            channel.send(`Game ${key} has been set to ${value}.`);
+          }
+        });
+      });
+  }
+
+  /*
+  * Private: Polls players to join the game, and if we have enough, starts an
+  * instance.
+  *
+  * messages - An {Observable} representing messages posted to the channel
+  * channel - The channel where the deal message was posted
+  *
+  * Returns an {Observable} that signals completion of the game
+  */
+  pollPlayersForGame(messages, channel) {
+    this.isPolling = true;
+
+    return PlayerInteraction.pollPotentialPlayers(messages, channel)
+                            .reduce((players, id) => {
+                              let user = this.slack.getUserByID(id);
+                              channel.send(`Great! ${user.name} has joined the game!!`);
+
+                              players.push({id: user.id, name: user.name});
+                              return players;
+                            }, [])
+                            .flatMap(players => {
+                              this.isPolling = false;
+                              this.addBotPlayers(players);
+
+                              let messagesInChannel = messages.where(e => e.channel === channel.id);
+                              return this.startGame(messagesInChannel, channel, players);
+                            });
+  }
 }
-
-module.exports = PokerVnBot;
