@@ -1,13 +1,8 @@
-'use strict';
+require('babel/register');
 
-var PokerVnBot = require('../src/bot/pokervnbot');
-var token = process.env.BOT_API_KEY || 'xoxb-12912207895-FAi3hNozask0b0rbRxcYKB0f';
-var name = process.env.BOT_NAME || 'test-bot';
+const PokerVnBot = require('../src/bot/pokervnbot');
+const token = process.env.BOT_API_KEY || 'xoxb-12912207895-FAi3hNozask0b0rbRxcYKB0f';
+const name = process.env.BOT_NAME || 'test-bot';
 
-// var bot = new PokerVnBot({
-//     token: token,
-//     name: name
-// });
-
-var bot = new PokerVnBot(token, true, true);
+const bot = new PokerVnBot(token, true, true);
 bot.run();

@@ -1,26 +1,29 @@
-var Card = function Constructor(rank, suit) {
+class Card {
+
+  constructor(rank, suit) {
     this.rank = rank;
     this.suit = suit;
-}
+  }
 
-Card.prototype.ranks = function() {
-  return ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A'];
-}
+  static ranks() {
+    return ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A'];
+  }
 
-Card.prototype.suits = function() {
-  return ['Spades', 'Hearts', 'Diamonds', 'Clubs'];
-}
+  static suits() {
+    return ['Spades', 'Hearts', 'Diamonds', 'Clubs'];
+  }
 
-Card.prototype.suitMapping = function() {
-  return {'Spades':'♠', 'Hearts':'♥', 'Diamonds':'♦', 'Clubs':'♣'};
-}
+  static suitMapping() {
+    return {'Spades':'♠', 'Hearts':'♥', 'Diamonds':'♦', 'Clubs':'♣'};
+  }
 
-Card.prototype.toAsciiString = function() {
-  return this.rank + this.suit.substring(0, 1).toLowerCase();
-}
+  toString() {
+    return `${this.rank}${Card.suitMapping()[this.suit]}`;
+  }
 
-Card.prototype.toString = function() {
-  return this.rank + Card.suitMapping()[this.suit];
+  toAsciiString() {
+    return `${this.rank}${this.suit.substring(0, 1).toLowerCase()}`;
+  }
 }
 
 module.exports = Card;

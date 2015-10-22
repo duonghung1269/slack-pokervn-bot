@@ -4,12 +4,16 @@
   "description": "A bot that allows you to play Poker Vietnam in Slack.",
   "main": "src/bot/pokervnbot.js",
   "scripts": {
+    "start": "babel-node bin/bot.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Hung",
   "license": "MIT",
   "dependencies": {
+    "babel": "^5.8.23",
+    "rx": "^4.0.6",
     "slack-client": "^1.4.1",
-    "slackbots": "^0.4.0"
+    "slackbots": "^0.4.0",
+    "underscore": "^1.8.3"
   }
 }

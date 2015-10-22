@@ -1,42 +1,46 @@
-var Card = require('./card');
+const Card = require('./card.js');
 
-var Deck = function Constructor() {
-  this.cards = [];
-  for (var suit in Card.suits()) {
-    for (var rank in Card.ranks()) {
-      this.cards.push(new Card(rank, suit));
+class Deck {
+
+  constructor() {
+    this.cards = [];
+    for (let suit of Card.suits()) {
+      for (let rank of Card.ranks()) {
+        let card = new Card(rank, suit);
+        this.cards.push(card);
+      }
     }
   }
-}
 
-// using Fisher-Yates shuffle
-Deck.prototype.shuffle = function(numberOfShuffles) {
-  var tmp, index;
-  var remainCards = this.cards.length;
-  while (numberOfShuffles > 0) {
-    while(remainCards) {
-      // pick a remaining card index
-      index = Math.floor(Math.random() * remainCards--);
+  // Fisher-Yates shuffle.
+  shuffle() {
+    let temp, idx;
+    let cardsRemaining = this.cards.length;
 
-      tmp = this.cards[remainCards];
-      this.cards[remainCards] = this.cards[index];
-      this.cards[index] = tmp;
+    // While there remain elements to shuffle…
+    while (cardsRemaining) {
+
+      // Pick a remaining element…
+      idx = Math.floor(Math.random() * cardsRemaining--);
+
+      // And swap it with the current element.
+      temp = this.cards[cardsRemaining];
+      this.cards[cardsRemaining] = this.cards[idx];
+      this.cards[idx] = temp;
     }
-
-    numberOfShuffles--;
   }
-}
 
-Deck.prototype.drawCard = function() {
-  return this.cards.shift();
-}
+  drawCard() {
+    return this.cards.shift();
+  }
 
-Deck.prototype.toString = function() {
-  return this.cards.join();
-}
+  toString() {
+    return this.cards.join();
+  }
 
-Deck.prototype.toAsciiString = function() {
-  return this.cards.map(card => card.toAsciiString()).join();
+  toAsciiString() {
+    return this.cards.map(card => card.toAsciiString()).join();
+  }
 }
 
 module.exports = Deck;
