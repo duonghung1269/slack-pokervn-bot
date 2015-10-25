@@ -3,7 +3,7 @@ const _ = require('underscore-plus');
 
 const Slack = require('slack-client');
 const MessageHelpers = require('../helper/message-helpers');
-const PlayerInteraction = require('../pokervn/player-interation');
+const PlayerInteraction = require('../pokervn/player-interaction');
 
 class PokerVnBot {
 
@@ -15,7 +15,7 @@ class PokerVnBot {
   // Brings this bot online and starts handling messages sent to it.
   login() {
     rx.Observable.fromEvent(this.slack, 'open')
-      .subscribe(() => this.onClientOpened());
+                 .subscribe(() => this.onClientOpened());
 
     this.slack.login();
     this.respondToMessages();
@@ -111,10 +111,43 @@ class PokerVnBot {
                             }, [])
                             .flatMap(players => {
                               this.isPolling = false;
-                              this.addBotPlayers(players);
+                              // this.addBotPlayers(players);
 
-                              let messagesInChannel = messages.where(e => e.channel === channel.id);
+                              let messagesInChannel = messages.where(message => message.channel === channel.id);
                               return this.startGame(messagesInChannel, channel, players);
                             });
   }
+
+  // Private: Save which channels and groups this bot is in and log them.
+  onClientOpened() {
+    this.channels = _.keys(this.slack.channels)
+                     .map(key => this.slack.channels[key])
+                     .filter(channel => channel.is_member);
+
+    this.groups = _.keys(this.slack.groups)
+                   .map(key => this.slack.groups[key])
+                   .filter(group => group.is_open && !group.is_archived);
+      
+    this.dms = _.keys(this.slack.dms)
+                .map(key => this.slack.dms[key])
+                .filter(dm => dm.is_open);
+
+    console.log(`Welcome to Slack. You are ${this.slack.self.name} of ${this.slack.team.name}`);
+
+    if (this.channels.length > 0) {
+      console.log(`You are in: ${this.channels.map(channel => channel.name).join(', ')}`);
+    } else {
+      console.log('You are not in any channels.');
+    }
+
+    if (this.groups.length > 0) {
+      console.log(`As well as: ${this.groups.map(group => group.name).join(', ')}`);
+    }
+    
+    if (this.dms.length > 0) {
+      console.log(`Your open DMs: ${this.dms.map(dm => dm.name).join(', ')}`);
+    }
+  }
 }
+
+module.exports = PokerVnBot;

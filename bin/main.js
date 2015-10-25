@@ -10,7 +10,7 @@ try {
     return;
 }
 
-const PokerVnBot = require('./bot/pokervnbot');
+const PokerVnBot = require('../src/bot/pokervnbot');
 const pokerVnBot = new PokerVnBot(token);
 pokerVnBot.login();
 
