@@ -2,8 +2,10 @@ const rx = require('rx');
 const _ = require('underscore-plus');
 
 const Slack = require('slack-client');
+const SlackApiRx = require('../helper/slack-api-rx');
 const MessageHelpers = require('../helper/message-helpers');
 const PlayerInteraction = require('../pokervn/player-interaction');
+const BlackJackVn = require('../pokervn/blackjackvn');
 
 class PokerVnBot {
 
@@ -118,6 +120,44 @@ class PokerVnBot {
                             });
   }
 
+  /*
+  * Private: Starts and manages a new BlackJackVn game.
+  *
+  * messages - An {Observable} representing messages posted to the channel
+  * channel - The channel where the game will be played
+  * players - The players participating in the game
+  *
+  * Returns an {Observable} that signals completion of the game
+  */
+  startGame(messages, channel, players) {
+    if (players.length <= 1) {
+      channel.send('Not enough players for the game, try again later!!');
+      return rx.Observable.return(null);
+    }
+
+    channel.send(`We've got ${players.length} players, let's start the game!!`);
+    this.isGameRunning = true;
+    let game = new BlackJackVn(this.slack, messages, channel, players);
+
+    // listen for messages directed at the bot containing 'quit game'
+    let quitGameDisp = messages.where(message => MessageHelpers.isUserMentioned(this.slack.self.id, message.text) &&
+                                                    message.text.toLowerCase().match(/quit game/))
+                                .take(1)
+                                .subscribe(message => {
+                                  let player = this.slack.getUserByID(message.user);
+                                  channel.send(`${player.name} has decided to quit the game. The game will end after this hand.`);
+                                  game.quit();
+                                });
+
+    return SlackApiRx.openDms(this.slack, players)
+                     .flatMap(playerDms => rx.Observable.timer(2000)
+                        .flatMap(() => game.start(playerDms)))
+                     .do(() => {
+                       quitGameDisp.dispose();
+                       this.isGameRunning = false;
+                     })
+  }
+
   // Private: Save which channels and groups this bot is in and log them.
   onClientOpened() {
     this.channels = _.keys(this.slack.channels)
@@ -127,7 +167,7 @@ class PokerVnBot {
     this.groups = _.keys(this.slack.groups)
                    .map(key => this.slack.groups[key])
                    .filter(group => group.is_open && !group.is_archived);
-      
+
     this.dms = _.keys(this.slack.dms)
                 .map(key => this.slack.dms[key])
                 .filter(dm => dm.is_open);
@@ -143,7 +183,7 @@ class PokerVnBot {
     if (this.groups.length > 0) {
       console.log(`As well as: ${this.groups.map(group => group.name).join(', ')}`);
     }
-    
+
     if (this.dms.length > 0) {
       console.log(`Your open DMs: ${this.dms.map(dm => dm.name).join(', ')}`);
     }
