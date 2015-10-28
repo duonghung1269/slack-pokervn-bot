@@ -4,6 +4,7 @@ const _ = require('underscore-plus');
 const Deck = require('./deck');
 const SlackApiRx = require('./slack-api-rx');
 const PlayerInteraction = require('./player-interaction');
+const PotManager = require('./pot-manager');
 
 class BlackJackVn {
 
@@ -25,6 +26,7 @@ class BlackJackVn {
 
     this.smallBlind = 1;
     this.bigBlind = this.smallBlind * 2;
+    this.potManager = new PotManager(this.channel, players, this.smallBlind);
     this.gameEnded = new rx.Subject();
 
     // Each player starts with 100 big blinds
@@ -48,7 +50,9 @@ class BlackJackVn {
   start(playerDms, dealerButton=null, timeBetweenHands=5000) {
     this.isRunning = true;
     this.playerDms = playerDms;
-    this.dealerButton = dealerButton === null ? Math.floor(Math.random() * this.players.length) : dealerButton;
+    //this.dealerButton = dealerButton === null ? Math.floor(Math.random() * this.players.length) : dealerButton;
+    // hard code deal from first player
+    this.dealerButton = 0;
 
     rx.Observable.return(true)
       .flatMap(() => this.playHand()
@@ -82,6 +86,14 @@ class BlackJackVn {
 
     let handEnded = new rx.Subject();
 
+    this.doBettingRound('preflop').subscribe(result => {
+      if (result.isHandComplete) {
+        this.potManager.endHand(result);
+        this.onHandEnded(handEnded);
+      } else {
+        this.flop(handEnded);
+      }
+    });
   }
 
   initializeHand() {
@@ -90,6 +102,40 @@ class BlackJackVn {
       player.isAllIn = false;
       player.isBettor = false;
     }
+
+    let participants = _.filter(this.players, player => player.isInHand);
+    this.potManager.createPot(participants);
+
+  }
+
+  /*
+  * Private: Deals hole cards to each player in the game. To communicate this
+  * to the players, we send them a DM with the text description of the cards.
+  * We can't post in channel for obvious reasons.
+  *
+  * Returns nothing
+  */
+  dealPlayerCards() {
+    this.orderedPlayers = PlayerOrder.determine(this.getPlayersInHand(), this.dealerButton, 'deal');
+
+    // first card deal
+    for (let player of this.orderedPlayers) {
+      let card = this.deck.drawCard();
+      this.playerHands[player.id] = [card];
+    }
+
+    // second card deal
+    for (let player of this.orderedPlayers) {
+      let card = this.deck.drawCard();
+      this.playerHands[player.id].push(card);
+      player.holeCards = this.playerHands[player.id];
+    }
+
+
+  }
+
+  getPlayersInHand() {
+    return _.filter(this.players, player => player.isInHand);
   }
 
   /*

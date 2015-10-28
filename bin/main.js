@@ -16,4 +16,4 @@ pokerVnBot.login();
 
 http.createServer(function(req, res) {
     res.end('SLACK_POKERVN_BOT_TOKEN');
-}).listen(process.env.PORT || 5000);
+}).listen(process.env.PORT || 6000);
