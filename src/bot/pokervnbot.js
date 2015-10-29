@@ -33,7 +33,7 @@ class PokerVnBot {
     let messages = rx.Observable.fromEvent(this.slack, 'message')
                      .where(e => e.type === 'message');
 
-    let atMentions = messages.where(e => MessageHelpers.isUserMentioned(this.slack.self.id, e.text));
+    let atMentions = messages.where(message => MessageHelpers.isUserMentioned(this.slack.self.id, message.text));
 
     let disposalble = new rx.CompositeDisposable();
     disposalble.add(this.handleDealGameMessages(messages, atMentions));
@@ -51,13 +51,16 @@ class PokerVnBot {
   * Returns a {Disposable} that will end this subscription
   **/
   handleDealGameMessages(messages, atMentions) {
+    console.log('handleDealGameMessages..., messages: ', messages);
     return atMentions
-            .where(e => e.text && e.text.toLowerCase().match(/\bdeal\b/))
-            .map(e => this.slack.getChannelGroupOrDMByID(e.channel))
+            .where(message => message.text && message.text.toLowerCase().match(/\bdeal\b/))
+            .map(message => this.slack.getChannelGroupOrDMByID(message.channel))
             .where(channel => {
               if (this.isPolling) {
+                console.log('handleDealGameMessages, isPolling');
                 return false;
               } else if (this.isGameRunning) {
+                console.log('handleDealGameMessages, Game is running');
                 channel.send('Another game is in progress, please quit that one first');
                 return false;
               }
@@ -101,6 +104,7 @@ class PokerVnBot {
   * Returns an {Observable} that signals completion of the game
   */
   pollPlayersForGame(messages, channel) {
+    console.log('pollPlayersForGame, isPolling = true');
     this.isPolling = true;
 
     return PlayerInteraction.pollPotentialPlayers(messages, channel)
@@ -130,6 +134,8 @@ class PokerVnBot {
   * Returns an {Observable} that signals completion of the game
   */
   startGame(messages, channel, players) {
+    console.log('startGame...');
+
     if (players.length <= 1) {
       channel.send('Not enough players for the game, try again later!!');
       return rx.Observable.return(null);
@@ -144,6 +150,7 @@ class PokerVnBot {
                                                     message.text.toLowerCase().match(/quit game/))
                                 .take(1)
                                 .subscribe(message => {
+                                  console.log('startGame, subscribe quit game');
                                   let player = this.slack.getUserByID(message.user);
                                   channel.send(`${player.name} has decided to quit the game. The game will end after this hand.`);
                                   game.quit();
